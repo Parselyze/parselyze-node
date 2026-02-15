@@ -31,3 +31,41 @@ export interface ApiError {
   status?: number;
   code?: string;
 }
+
+export interface ParseDocumentAsyncOptions {
+  file: File | Blob | Buffer | string;
+  templateId: string;
+  language?: string;
+}
+
+export interface AsyncJobResponse {
+  jobId: string;
+  status: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface JobDetailResponse {
+  jobId: string;
+  status: string;
+  fileName: string;
+  templateId: string;
+  result: any;
+  error: string | null;
+  pageCount: number | null;
+  attempts: number;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface WebhookPayload {
+  eventId: string;
+  eventType: 'document.completed' | 'document.failed';
+  jobId: string;
+  status: string;
+  result?: any;
+  error?: string;
+  pageCount?: number;
+  timestamp: string;
+}

@@ -29,13 +29,11 @@ describe('DocumentsClient', () => {
 
   describe('parse method', () => {
     it('should throw error for empty files array', async () => {
-      await expect(client.parse({ files: [], templateId: 'test' }))
-        .rejects.toThrow(ParselyzeError);
+      await expect(client.parse({ files: [], templateId: 'test' })).rejects.toThrow(ParselyzeError);
     });
 
     it('should throw error for missing template ID', async () => {
-      await expect(client.parse({ files: ['test.pdf'], templateId: '' }))
-        .rejects.toThrow(ParselyzeError);
+      await expect(client.parse({ files: ['test.pdf'], templateId: '' })).rejects.toThrow(ParselyzeError);
     });
 
     it('should handle successful single document response', async () => {
@@ -70,7 +68,7 @@ describe('DocumentsClient', () => {
         json: jest.fn().mockResolvedValue({
           results: [
             { filename: 'doc1.pdf', result: { field1: 'value1' } },
-            { filename: 'doc2.pdf', result: { field2: 'value2' } }
+            { filename: 'doc2.pdf', result: { field2: 'value2' } },
           ],
           pageCount: 5,
           pageUsed: 2,
@@ -106,19 +104,23 @@ describe('DocumentsClient', () => {
       };
       mockFetch.mockResolvedValue(mockResponse);
 
-      await expect(client.parse({
-        files: ['test.pdf'],
-        templateId: 'invalid',
-      })).rejects.toThrow(ParselyzeError);
+      await expect(
+        client.parse({
+          files: ['test.pdf'],
+          templateId: 'invalid',
+        }),
+      ).rejects.toThrow(ParselyzeError);
     });
 
     it('should handle network errors', async () => {
       mockFetch.mockRejectedValue(new Error('Network error'));
 
-      await expect(client.parse({
-        files: ['test.pdf'],
-        templateId: 'template123',
-      })).rejects.toThrow(ParselyzeError);
+      await expect(
+        client.parse({
+          files: ['test.pdf'],
+          templateId: 'template123',
+        }),
+      ).rejects.toThrow(ParselyzeError);
     });
 
     it('should handle multiple documents response with pageCount', async () => {
@@ -127,7 +129,7 @@ describe('DocumentsClient', () => {
         json: jest.fn().mockResolvedValue({
           results: [
             { filename: 'doc1.pdf', result: { field1: 'value1' } },
-            { filename: 'doc2.pdf', result: { field2: 'value2' } }
+            { filename: 'doc2.pdf', result: { field2: 'value2' } },
           ],
           pageCount: 5, // Backend now returns pageCount consistently
           pageUsed: 2,
@@ -154,9 +156,7 @@ describe('DocumentsClient', () => {
       const mockResponse = {
         ok: true,
         json: jest.fn().mockResolvedValue({
-          results: [
-            { filename: 'doc1.pdf', result: { field1: 'value1' } }
-          ],
+          results: [{ filename: 'doc1.pdf', result: { field1: 'value1' } }],
           pageCount: 2,
           pageUsed: 1,
           pageRemaining: 99,
@@ -171,6 +171,97 @@ describe('DocumentsClient', () => {
       });
 
       expect((result as any).source).toBe('zip');
+    });
+  });
+
+  describe('parseAsync method', () => {
+    it('should throw error for missing file', async () => {
+      await expect(client.parseAsync({ file: null as any, templateId: 'test' })).rejects.toThrow(ParselyzeError);
+    });
+
+    it('should throw error for missing template ID', async () => {
+      await expect(client.parseAsync({ file: 'test.pdf', templateId: '' })).rejects.toThrow(ParselyzeError);
+    });
+
+    it('should handle successful async job submission', async () => {
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          jobId: 'job_123',
+          status: 'pending',
+          message: 'Document submitted for processing',
+          createdAt: '2026-02-15T12:00:00Z',
+        }),
+      };
+      mockFetch.mockResolvedValue(mockResponse);
+
+      const result = await client.parseAsync({
+        file: 'test.pdf',
+        templateId: 'template123',
+      });
+
+      expect(result.jobId).toBe('job_123');
+      expect(result.status).toBe('pending');
+      expect(result.message).toBe('Document submitted for processing');
+      expect(result.createdAt).toBe('2026-02-15T12:00:00Z');
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.test.com/v1/documents/parse/async',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'x-api-key': 'plz_test_key' },
+        }),
+      );
+    });
+
+    it('should handle async job submission with language', async () => {
+      const mockResponse = {
+        ok: true,
+        json: jest.fn().mockResolvedValue({
+          jobId: 'job_123',
+          status: 'pending',
+          message: 'Document submitted for processing',
+          createdAt: '2026-02-15T12:00:00Z',
+        }),
+      };
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await client.parseAsync({
+        file: 'test.pdf',
+        templateId: 'template123',
+        language: 'fr',
+      });
+
+      expect(mockFormData.append).toHaveBeenCalledWith('language', 'fr');
+    });
+
+    it('should handle API error response for async', async () => {
+      const mockResponse = {
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        json: jest.fn().mockResolvedValue({
+          message: 'ZIP files are not supported for async processing',
+        }),
+      };
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(
+        client.parseAsync({
+          file: 'test.zip',
+          templateId: 'template123',
+        }),
+      ).rejects.toThrow(ParselyzeError);
+    });
+
+    it('should handle network errors for async', async () => {
+      mockFetch.mockRejectedValue(new Error('Network error'));
+
+      await expect(
+        client.parseAsync({
+          file: 'test.pdf',
+          templateId: 'template123',
+        }),
+      ).rejects.toThrow(ParselyzeError);
     });
   });
 });

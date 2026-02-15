@@ -47,12 +47,16 @@ function getFileName(filePath: string): string {
 /**
  * Read file and get its metadata
  */
-function readFileWithMetadata(filePath: string): { buffer: Buffer; filename: string; mimeType: string } {
+function readFileWithMetadata(filePath: string): {
+  buffer: Buffer;
+  filename: string;
+  mimeType: string;
+} {
   try {
     const buffer = readFileSync(filePath);
     const filename = getFileName(filePath);
     const mimeType = getMimeType(filePath);
-    
+
     return { buffer, filename, mimeType };
   } catch (error: any) {
     throw new Error(`Failed to read file from path "${filePath}": ${error.message}`);
@@ -66,5 +70,6 @@ function readFileWithMetadata(filePath: string): { buffer: Buffer; filename: str
  */
 export function createFileFromPath(filePath: string): File {
   const { buffer, filename, mimeType } = readFileWithMetadata(filePath);
-  return new File([buffer], filename, { type: mimeType });
+  const uint8Array = new Uint8Array(buffer);
+  return new File([uint8Array], filename, { type: mimeType });
 }

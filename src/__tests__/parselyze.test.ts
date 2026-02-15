@@ -7,6 +7,8 @@ describe('Parselyze SDK', () => {
       const parselyze = new Parselyze('plz_test_key');
       expect(parselyze).toBeInstanceOf(Parselyze);
       expect(parselyze.documents).toBeDefined();
+      expect(parselyze.jobs).toBeDefined();
+      expect(parselyze.webhooks).toBeDefined();
     });
 
     it('should throw error for missing API key', () => {
@@ -28,6 +30,42 @@ describe('Parselyze SDK', () => {
     it('should have documents client', () => {
       const parselyze = new Parselyze('plz_test_key');
       expect(parselyze.documents).toBeDefined();
+    });
+  });
+
+  describe('Jobs client', () => {
+    it('should have jobs client', () => {
+      const parselyze = new Parselyze('plz_test_key');
+      expect(parselyze.jobs).toBeDefined();
+    });
+  });
+
+  describe('Webhooks client', () => {
+    it('should have webhooks client', () => {
+      const parselyze = new Parselyze('plz_test_key');
+      expect(parselyze.webhooks).toBeDefined();
+    });
+
+    it('should verify webhook signature via client with secret in constructor', () => {
+      const secret = 'test_secret';
+      const parselyze = new Parselyze('plz_test_key', secret);
+      const payload = { test: 'data' };
+      const crypto = require('crypto');
+      const validSignature = crypto.createHmac('sha256', secret).update(JSON.stringify(payload)).digest('hex');
+
+      expect(parselyze.webhooks.verifySignature(payload, validSignature)).toBe(true);
+      expect(parselyze.webhooks.verifySignature(payload, 'invalid')).toBe(false);
+    });
+
+    it('should verify webhook signature with secret in constructor', () => {
+      const secret = 'test_secret';
+      const parselyze = new Parselyze('plz_test_key', secret);
+      const payload = { test: 'data' };
+      const crypto = require('crypto');
+      const validSignature = crypto.createHmac('sha256', secret).update(JSON.stringify(payload)).digest('hex');
+
+      expect(parselyze.webhooks.verifySignature(payload, validSignature)).toBe(true);
+      expect(parselyze.webhooks.verifySignature(payload, 'invalid')).toBe(false);
     });
   });
 });
