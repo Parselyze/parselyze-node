@@ -12,9 +12,6 @@ export class DocumentsClient {
   /**
    * Parse documents using a template to extract structured data
    *
-   * @deprecated Use parseAsync() instead for better reliability and webhook support.
-   * This synchronous method will be removed in a future major version.
-   *
    * @param options - Parsing configuration
    * @param options.files - Files to parse (paths, File objects, Blobs, or Buffers)
    * @param options.templateId - Template ID for data extraction
@@ -26,7 +23,6 @@ export class DocumentsClient {
    *
    * @example
    * ```typescript
-   * // Deprecated - use parseAsync() instead
    * const result = await parselyze.documents.parse({
    *   files: ['./invoice.pdf'],
    *   templateId: 'template-123'
@@ -172,6 +168,25 @@ export class DocumentsClient {
     }
   }
 
+  #appendFile(formData: FormData, fieldName: string, file: File | Blob | Buffer | string): void {
+    if (file instanceof File) {
+      formData.append(fieldName, file, file.name);
+    } else if (file instanceof Blob) {
+      formData.append(fieldName, file, 'document');
+    } else if (Buffer.isBuffer(file)) {
+      formData.append(fieldName, file as any, 'document.pdf');
+    } else if (typeof file === 'string') {
+      try {
+        const fileObj = createFileFromPath(file);
+        formData.append(fieldName, fileObj, fileObj.name);
+      } catch (error: any) {
+        throw new ParselyzeError(`Failed to load file from path "${file}": ${error.message}`);
+      }
+    } else {
+      throw new ParselyzeError('Invalid file type. Expected File, Blob, Buffer, or string path');
+    }
+  }
+
   #createFormData(options: ParseDocumentOptions): FormData {
     const formData = new FormData();
     formData.append('templateId', options.templateId);
@@ -181,26 +196,7 @@ export class DocumentsClient {
     }
 
     for (const file of options.files) {
-      if (file instanceof File) {
-        // File object
-        formData.append('files', file, file.name);
-      } else if (file instanceof Blob) {
-        // Blob object
-        formData.append('files', file, 'document');
-      } else if (Buffer.isBuffer(file)) {
-        // Buffer
-        formData.append('files', file as any, 'document.pdf');
-      } else if (typeof file === 'string') {
-        // String path
-        try {
-          const fileObj = createFileFromPath(file);
-          formData.append('files', fileObj, fileObj.name);
-        } catch (error: any) {
-          throw new ParselyzeError(`Failed to load file from path "${file}": ${error.message}`);
-        }
-      } else {
-        throw new ParselyzeError('Invalid file type. Expected File, Blob, Buffer, or string path');
-      }
+      this.#appendFile(formData, 'files', file);
     }
 
     return formData;
@@ -214,28 +210,7 @@ export class DocumentsClient {
       formData.append('language', options.language);
     }
 
-    const file = options.file;
-
-    if (file instanceof File) {
-      // File object
-      formData.append('file', file, file.name);
-    } else if (file instanceof Blob) {
-      // Blob object
-      formData.append('file', file, 'document');
-    } else if (Buffer.isBuffer(file)) {
-      // Buffer
-      formData.append('file', file as any, 'document.pdf');
-    } else if (typeof file === 'string') {
-      // String path
-      try {
-        const fileObj = createFileFromPath(file);
-        formData.append('file', fileObj, fileObj.name);
-      } catch (error: any) {
-        throw new ParselyzeError(`Failed to load file from path "${file}": ${error.message}`);
-      }
-    } else {
-      throw new ParselyzeError('Invalid file type. Expected File, Blob, Buffer, or string path');
-    }
+    this.#appendFile(formData, 'file', options.file);
 
     return formData;
   }

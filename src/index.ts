@@ -5,6 +5,7 @@ export type {
   AsyncJobResponse,
   DocumentResult,
   JobDetailResponse,
+  JobStatus,
   MultiDocumentResponse,
   ParseDocumentAsyncOptions,
   ParseDocumentOptions,

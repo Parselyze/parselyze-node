@@ -24,10 +24,6 @@ const parselyze = new Parselyze('plz_your_api_key_here');
 
 ## Usage
 
-:::warning Async Processing Recommended
-The synchronous `parse()` method is deprecated. Use `parseAsync()` with webhooks for better reliability.
-:::
-
 **Recommended: Async Processing**
 
 ```javascript
@@ -50,10 +46,9 @@ if (result.status === 'completed') {
 }
 ```
 
-**Legacy: Synchronous Processing (Deprecated)**
+**Synchronous Processing**
 
 ```javascript
-// ⚠️ DEPRECATED - Use parseAsync() instead
 const result = await parselyze.documents.parse({
   files: ['./invoice.pdf'],
   templateId: 'your-template-id'
@@ -81,7 +76,7 @@ file: fileInput.files[0]
 file: new Blob([data], { type: 'application/pdf' })
 ```
 
-**For Legacy Sync Processing (Deprecated):**
+**For Sync Processing:**
 ```javascript
 // Multiple files as array
 files: ['./document.pdf', './receipt.jpg']
@@ -95,11 +90,11 @@ files: ['./invoice.pdf', bufferData, fileObject]
 The SDK is fully typed:
 
 ```typescript
-import { Parselyze, AsyncJobResponse, JobDetailResponse } from 'parselyze';
+import { Parselyze, AsyncJobResponse, JobDetailResponse, JobStatus, WebhookPayload } from 'parselyze';
 
 const parselyze = new Parselyze('plz_your_api_key_here');
 
-// Async processing (recommended)
+// Async processing
 const job: AsyncJobResponse = await parselyze.documents.parseAsync({
   file: './invoice.pdf',
   templateId: 'template-id',
@@ -107,6 +102,12 @@ const job: AsyncJobResponse = await parselyze.documents.parseAsync({
 });
 
 const result: JobDetailResponse = await parselyze.jobs.get(job.jobId);
+// result.status is typed as JobStatus: 'pending' | 'processing' | 'completed' | 'failed'
+
+// Webhook payload with typed result
+interface InvoiceData { number: string; total: number; }
+const event: WebhookPayload<InvoiceData> = parselyze.webhooks.constructEvent<InvoiceData>(body, signature);
+// event.result is InvoiceData | undefined
 ```
 
 ## Error Handling
@@ -181,32 +182,58 @@ Instead of polling for job status, configure webhooks in your [Parselyze dashboa
 }
 ```
 
-**Verify Webhook Signatures:**
-```javascript
-import { verifyWebhookSignature } from 'parselyze';
+**Handle Webhooks with `constructEvent` (Recommended):**
 
-// In your webhook endpoint
-app.post('/webhooks/parselyze', (req, res) => {
-  const signature = req.headers['x-webhook-signature'];
-  const webhookSecret = process.env.PARSELYZE_WEBHOOK_SECRET;
-  
-  // Verify the webhook signature
-  if (!verifyWebhookSignature(req.body, signature, webhookSecret)) {
-    return res.status(401).send('Invalid signature');
+`constructEvent` verifies the signature and returns a typed payload in one step. It throws a `ParselyzeError` if the signature is invalid, making error handling explicit.
+
+```typescript
+import { Parselyze, ParselyzeError, WebhookPayload } from 'parselyze';
+
+const parselyze = new Parselyze('plz_your_api_key', process.env.PARSELYZE_WEBHOOK_SECRET);
+
+// Express — use express.raw() to preserve the raw body for signature verification
+app.post('/webhooks/parselyze', express.raw({ type: 'application/json' }), (req, res) => {
+  let event: WebhookPayload;
+
+  try {
+    event = parselyze.webhooks.constructEvent(
+      req.body.toString(),
+      req.headers['x-webhook-signature'] as string
+    );
+  } catch (err) {
+    if (err instanceof ParselyzeError) {
+      return res.status(err.status ?? 400).send(err.message);
+    }
+    return res.status(400).send('Webhook error');
   }
-  
-  const { eventType, jobId, status, result, error } = req.body;
-  
-  if (eventType === 'document.completed') {
-    // Process the result
-    console.log('Job completed:', jobId, result);
-  } else if (eventType === 'document.failed') {
-    // Handle the error
-    console.error('Job failed:', jobId, error);
+
+  if (event.eventType === 'document.completed') {
+    console.log('Job completed:', event.jobId, event.result);
+  } else if (event.eventType === 'document.failed') {
+    console.error('Job failed:', event.jobId, event.error);
   }
-  
-  res.status(200).send('OK');
+
+  res.json({ received: true });
 });
+```
+
+**Type the result with a generic:**
+
+```typescript
+interface InvoiceData { number: string; total: number; }
+
+const event = parselyze.webhooks.constructEvent<InvoiceData>(body, signature);
+// event.result is InvoiceData | undefined
+if (event.eventType === 'document.completed') {
+  console.log(event.result?.number); // fully typed
+}
+```
+
+**Verify signature only (low-level):**
+
+```typescript
+// Returns true/false without throwing
+const isValid = parselyze.webhooks.verifySignature(req.body, signature);
 ```
 
 ## API Reference
@@ -225,8 +252,8 @@ Submit a document for asynchronous processing. Use this for large documents or w
 
 ```typescript
 {
-  jobId: string;         // Job ID to check status later
-  status: string;        // Initial status (usually "pending")
+  jobId: string;
+  status: JobStatus;     // 'pending' | 'processing' | 'completed' | 'failed'
   message: string;       // Status message
   createdAt: string;     // ISO 8601 timestamp
 }
@@ -245,10 +272,10 @@ Get the status and result of an asynchronous job.
 ```typescript
 {
   jobId: string;
-  status: string;        // 'pending', 'processing', 'completed', or 'failed'
+  status: JobStatus;     // 'pending' | 'processing' | 'completed' | 'failed'
   fileName: string;      // Original filename
   templateId: string;    // Template used
-  result: any;           // Parsed data (null if not completed)
+  result: T;             // Parsed data (null if not completed)
   error: string | null;  // Error message (null if no error)
   pageCount: number | null;
   attempts: number;      // Number of processing attempts
@@ -258,13 +285,9 @@ Get the status and result of an asynchronous job.
 }
 ```
 
-### `parselyze.documents.parse(options)` ⚠️ Deprecated
+### `parselyze.documents.parse(options)`
 
-:::warning DEPRECATED
-This synchronous method is deprecated and will be removed in a future major version. Use `parseAsync()` instead for better reliability and webhook support.
-:::
-
-Parse documents using a template to extract structured data.
+Parse documents synchronously using a template to extract structured data.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
@@ -298,36 +321,29 @@ Multiple documents:
 }
 ```
 
-### `verifyWebhookSignature(body, signature, secret)`
+### `parselyze.webhooks.constructEvent<T>(body, signature)` ⭐ Recommended
 
-Verify webhook signature to ensure the request is authentic and comes from Parselyze.
+Verify the webhook signature and parse the payload into a typed event. Throws a `ParselyzeError` if the signature is invalid.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `body` | `string\|object` | ✅ | Raw webhook payload string or parsed object |
+| `signature` | `string` | ✅ | Signature from `X-Webhook-Signature` header |
+
+**Returns:** `WebhookPayload<T>` — typed event payload
+
+**Throws:** `ParselyzeError` with code `INVALID_SIGNATURE` (401) or `INVALID_PAYLOAD` (400)
+
+### `parselyze.webhooks.verifySignature(body, signature)`
+
+Low-level signature verification. Returns `true`/`false` without throwing.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `body` | `string\|object` | ✅ | Webhook payload (parsed object or raw string) |
 | `signature` | `string` | ✅ | Signature from `X-Webhook-Signature` header |
-| `secret` | `string` | ✅ | Your webhook secret from dashboard |
 
-**Returns:** `boolean` - `true` if signature is valid, `false` otherwise
-
-**Example:**
-
-```typescript
-import { verifyWebhookSignature, WebhookPayload } from 'parselyze';
-
-app.post('/webhook', (req, res) => {
-  const signature = req.headers['x-webhook-signature'] as string;
-  const secret = process.env.PARSELYZE_WEBHOOK_SECRET!;
-  
-  if (!verifyWebhookSignature(req.body, signature, secret)) {
-    return res.status(401).send('Invalid signature');
-  }
-  
-  const payload: WebhookPayload = req.body;
-  // Process webhook safely...
-  res.status(200).send('OK');
-});
-```
+**Returns:** `boolean`
 
 ## Supported Formats
 

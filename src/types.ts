@@ -1,30 +1,32 @@
+export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
 export interface ParseDocumentOptions {
   files: (File | Blob | Buffer | string)[];
   templateId: string;
   language?: string;
 }
 
-export interface DocumentResult {
+export interface DocumentResult<T = unknown> {
   filename: string;
-  result: any;
+  result: T;
 }
 
-export interface SingleDocumentResponse {
-  result: any;
+export interface SingleDocumentResponse<T = unknown> {
+  result: T;
   pageCount: number;
   pageUsed: number;
   pageRemaining: number;
 }
 
-export interface MultiDocumentResponse {
-  results: DocumentResult[];
+export interface MultiDocumentResponse<T = unknown> {
+  results: DocumentResult<T>[];
   pageCount: number;
   pageUsed: number;
   pageRemaining: number;
   source?: 'zip';
 }
 
-export type ParseDocumentResponse = SingleDocumentResponse | MultiDocumentResponse;
+export type ParseDocumentResponse<T = unknown> = SingleDocumentResponse<T> | MultiDocumentResponse<T>;
 
 export interface ApiError {
   message: string;
@@ -40,17 +42,17 @@ export interface ParseDocumentAsyncOptions {
 
 export interface AsyncJobResponse {
   jobId: string;
-  status: string;
+  status: JobStatus;
   message: string;
   createdAt: string;
 }
 
-export interface JobDetailResponse {
+export interface JobDetailResponse<T = unknown> {
   jobId: string;
-  status: string;
+  status: JobStatus;
   fileName: string;
   templateId: string;
-  result: any;
+  result: T;
   error: string | null;
   pageCount: number | null;
   attempts: number;
@@ -59,12 +61,12 @@ export interface JobDetailResponse {
   completedAt: string | null;
 }
 
-export interface WebhookPayload {
+export interface WebhookPayload<T = unknown> {
   eventId: string;
   eventType: 'document.completed' | 'document.failed';
   jobId: string;
-  status: string;
-  result?: any;
+  status: JobStatus;
+  result?: T;
   error?: string;
   pageCount?: number;
   timestamp: string;

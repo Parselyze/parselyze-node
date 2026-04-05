@@ -1,4 +1,6 @@
-import { createHmac } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
+import { ParselyzeError } from '../errors';
+import { WebhookPayload } from '../types';
 
 export class WebhooksClient {
   private readonly secret?: string;
@@ -37,25 +39,60 @@ export class WebhooksClient {
     hmac.update(bodyString);
     const expectedSignature = hmac.digest('hex');
 
-    return this.timingSafeEqual(signature, expectedSignature);
-  }
+    const expectedBuf = Buffer.from(expectedSignature);
+    const actualBuf = Buffer.from(signature);
 
-  /**
-   * Timing-safe string comparison to prevent timing attacks
-   * @param a - First string
-   * @param b - Second string
-   * @returns True if strings are equal
-   */
-  private timingSafeEqual(a: string, b: string): boolean {
-    if (a.length !== b.length) {
+    if (expectedBuf.length !== actualBuf.length) {
       return false;
     }
 
-    let result = 0;
-    for (let i = 0; i < a.length; i++) {
-      result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    return timingSafeEqual(expectedBuf, actualBuf);
+  }
+
+  /**
+   * Verify a webhook signature and parse the payload into a typed event.
+   * Prefer this method over `verifySignature` for a complete integration.
+   *
+   * @param body - Raw webhook payload string or parsed object
+   * @param signature - Signature from X-Webhook-Signature header
+   * @returns Typed WebhookPayload
+   *
+   * @throws {ParselyzeError} When the signature is invalid or the payload cannot be parsed
+   *
+   * @example
+   * ```typescript
+   * // Express (use express.raw to get the raw body for signature verification)
+   * app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+   *   let event: WebhookPayload;
+   *   try {
+   *     event = parselyze.webhooks.constructEvent(
+   *       req.body.toString(),
+   *       req.headers['x-webhook-signature'] as string
+   *     );
+   *   } catch (err) {
+   *     return res.status(400).send('Webhook error');
+   *   }
+   *
+   *   if (event.eventType === 'document.completed') {
+   *     console.log('Parsed result:', event.result);
+   *   } else if (event.eventType === 'document.failed') {
+   *     console.error('Processing failed:', event.error);
+   *   }
+   *
+   *   res.json({ received: true });
+   * });
+   * ```
+   */
+  constructEvent<T = unknown>(body: string | object, signature: string): WebhookPayload<T> {
+    if (!this.verifySignature(body, signature)) {
+      throw new ParselyzeError('Invalid webhook signature', 401, 'INVALID_SIGNATURE');
     }
 
-    return result === 0;
+    try {
+      const payload = typeof body === 'string' ? JSON.parse(body) : body;
+      return payload as WebhookPayload<T>;
+    } catch {
+      throw new ParselyzeError('Failed to parse webhook payload', 400, 'INVALID_PAYLOAD');
+    }
   }
 }
