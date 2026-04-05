@@ -138,7 +138,9 @@ describe('WebhooksClient', () => {
     });
 
     it('should support generic type parameter', () => {
-      interface InvoiceData { number: string }
+      interface InvoiceData {
+        number: string;
+      }
       const sig = makeSignature(testPayload);
       const event = client.constructEvent<InvoiceData>(testPayload, sig);
       // TypeScript type check: event.result should be InvoiceData | undefined
