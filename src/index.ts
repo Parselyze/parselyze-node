@@ -3,6 +3,7 @@ export { Parselyze } from './parselyze';
 export type {
   ApiError,
   AsyncJobResponse,
+  CreateTemplateOptions,
   DocumentResult,
   JobDetailResponse,
   JobStatus,
@@ -11,6 +12,10 @@ export type {
   ParseDocumentOptions,
   ParseDocumentResponse,
   SingleDocumentResponse,
+  Template,
+  TemplateCategory,
+  TemplateListItem,
+  UpdateTemplateOptions,
   WebhookPayload,
 } from './types';
 

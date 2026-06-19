@@ -85,12 +85,45 @@ files: ['./document.pdf', './receipt.jpg']
 files: ['./invoice.pdf', bufferData, fileObject]
 ```
 
+## Templates
+
+```javascript
+// List your templates
+const templates = await parselyze.templates.list();
+// [{ id: 'tpl_abc123', name: 'Invoice' }, ...]
+
+// Create a template
+const template = await parselyze.templates.create({
+  name: 'Invoice',
+  category: 'INVOICE',
+  schema: {
+    data: {
+      invoiceNumber: { type: 'string', description: 'Invoice number' },
+      totalAmount:   { type: 'number', description: 'Total amount due' },
+      vendorEmail:   { type: 'string', format: 'email', description: 'Vendor email' },
+    }
+  }
+});
+
+console.log(template.id); // Use this as templateId when parsing documents
+
+// Update a template
+const updated = await parselyze.templates.update(template.id, {
+  name: 'Invoice v2',
+  category: 'INVOICE',
+  schema: { data: { invoiceNumber: { type: 'string' }, totalAmount: { type: 'number' } } }
+});
+
+// Delete a template
+await parselyze.templates.delete(template.id);
+```
+
 ## TypeScript
 
 The SDK is fully typed:
 
 ```typescript
-import { Parselyze, AsyncJobResponse, JobDetailResponse, JobStatus, WebhookPayload } from 'parselyze';
+import { Parselyze, AsyncJobResponse, JobDetailResponse, JobStatus, WebhookPayload, Template, TemplateListItem, CreateTemplateOptions, UpdateTemplateOptions, TemplateCategory } from 'parselyze';
 
 const parselyze = new Parselyze('plz_your_api_key_here');
 
@@ -108,6 +141,14 @@ const result: JobDetailResponse = await parselyze.jobs.get(job.jobId);
 interface InvoiceData { number: string; total: number; }
 const event: WebhookPayload<InvoiceData> = parselyze.webhooks.constructEvent<InvoiceData>(body, signature);
 // event.result is InvoiceData | undefined
+
+// Template types
+const templates: TemplateListItem[] = await parselyze.templates.list();
+const template: Template = await parselyze.templates.create({
+  name: 'Invoice',
+  category: 'INVOICE' as TemplateCategory,
+  schema: { data: { invoiceNumber: { type: 'string' } } }
+} satisfies CreateTemplateOptions);
 ```
 
 ## Error Handling
@@ -320,6 +361,46 @@ Multiple documents:
   source?: 'zip';        // Present if from ZIP
 }
 ```
+
+### `parselyze.templates.list()`
+
+List all templates belonging to your account.
+
+**Returns:** `TemplateListItem[]`
+
+```typescript
+[{ id: string; name: string }, ...]
+```
+
+### `parselyze.templates.create(options)`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | `string` | ✅ | Template name |
+| `category` | `TemplateCategory` | ✅ | `INVOICE` \| `RECEIPT` \| `ID_DOCUMENT` \| `CONTRACT` \| `MEDICAL_RECORD` \| `RESUME` \| `CUSTOM` |
+| `schema` | `object` | ✅ | Field definitions (see [schema format](https://docs.parselyze.com/api-reference/templates)) |
+| `description` | `string` | ❌ | Optional description |
+
+**Returns:** `Template` — the created template including its `id`
+
+### `parselyze.templates.update(templateId, options)`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `templateId` | `string` | ✅ | ID of the template to update |
+| `options` | `UpdateTemplateOptions` | ✅ | Same fields as `create` |
+
+**Returns:** `Template` — the updated template
+
+### `parselyze.templates.delete(templateId)`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `templateId` | `string` | ✅ | ID of the template to delete |
+
+**Returns:** `void`
+
+---
 
 ### `parselyze.webhooks.constructEvent<T>(body, signature)` ⭐ Recommended
 

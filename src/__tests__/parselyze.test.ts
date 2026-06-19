@@ -68,4 +68,11 @@ describe('Parselyze SDK', () => {
       expect(parselyze.webhooks.verifySignature(payload, 'invalid')).toBe(false);
     });
   });
+
+  describe('Templates client', () => {
+    it('should have templates client', () => {
+      const parselyze = new Parselyze('plz_test_key');
+      expect(parselyze.templates).toBeDefined();
+    });
+  });
 });

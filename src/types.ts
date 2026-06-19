@@ -71,3 +71,29 @@ export interface WebhookPayload<T = unknown> {
   pageCount?: number;
   timestamp: string;
 }
+
+export type TemplateCategory = 'INVOICE' | 'RECEIPT' | 'ID_DOCUMENT' | 'CONTRACT' | 'MEDICAL_RECORD' | 'RESUME' | 'CUSTOM';
+
+export interface Template {
+  id: string;
+  name: string;
+  description?: string | null;
+  schema: Record<string, unknown>;
+  category: TemplateCategory;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TemplateListItem {
+  id: string;
+  name: string;
+}
+
+export interface CreateTemplateOptions {
+  name: string;
+  description?: string;
+  schema: Record<string, unknown>;
+  category: TemplateCategory;
+}
+
+export type UpdateTemplateOptions = CreateTemplateOptions;

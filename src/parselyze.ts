@@ -1,5 +1,6 @@
 import { DocumentsClient } from './clients/documents';
 import { JobsClient } from './clients/jobs';
+import { TemplatesClient } from './clients/templates';
 import { WebhooksClient } from './clients/webhooks';
 import { ParselyzeError } from './errors';
 
@@ -9,6 +10,7 @@ export class Parselyze {
   private readonly timeout = 30_000; // 30 seconds
   public readonly documents: DocumentsClient;
   public readonly jobs: JobsClient;
+  public readonly templates: TemplatesClient;
   public readonly webhooks: WebhooksClient;
 
   constructor(apiKey: string, webhookSecret?: string) {
@@ -25,6 +27,8 @@ export class Parselyze {
     this.documents = new DocumentsClient(this.apiKey, this.baseUrl, this.timeout);
 
     this.jobs = new JobsClient(this.apiKey, this.baseUrl, this.timeout);
+
+    this.templates = new TemplatesClient(this.apiKey, this.baseUrl, this.timeout);
 
     this.webhooks = new WebhooksClient(webhookSecret);
   }
