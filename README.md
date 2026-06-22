@@ -149,6 +149,12 @@ const template: Template = await parselyze.templates.create({
   category: 'INVOICE' as TemplateCategory,
   schema: { data: { invoiceNumber: { type: 'string' } } }
 } satisfies CreateTemplateOptions);
+
+const templateFromDocument: TemplateFromDocument = await parselyze.templates.createFromDocument({
+  file: './invoice.pdf',
+  name: 'Invoice',
+  'description': 'description'
+} satisfies CreateTemplateFromDocumentOptions);
 ```
 
 ## Error Handling
@@ -380,6 +386,16 @@ List all templates belonging to your account.
 | `category` | `TemplateCategory` | ✅ | `INVOICE` \| `RECEIPT` \| `ID_DOCUMENT` \| `CONTRACT` \| `MEDICAL_RECORD` \| `RESUME` \| `CUSTOM` |
 | `schema` | `object` | ✅ | Field definitions (see [schema format](https://docs.parselyze.com/api-reference/templates)) |
 | `description` | `string` | ❌ | Optional description |
+
+**Returns:** `Template` — the created template including its `id`
+
+### `parselyze.templates.createFromDocument(options)`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `name` | `string` | ✅ | Template name |
+| `description` | `string` | ❌ | Optional description |
+| `file` | `File\|Blob\|Buffer\|string` | ✅ | Single file to parse (path, File, Buffer, or Blob) |
 
 **Returns:** `Template` — the created template including its `id`
 

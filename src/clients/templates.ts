@@ -1,5 +1,6 @@
 import { ParselyzeError } from '../errors';
-import { CreateTemplateOptions, Template, TemplateListItem, UpdateTemplateOptions } from '../types';
+import { CreateTemplateFromDocumentOptions, CreateTemplateOptions, Template, TemplateFromDocument, TemplateListItem, UpdateTemplateOptions } from '../types';
+import { createFileFromPath } from '../utils';
 
 export class TemplatesClient {
   constructor(
@@ -61,6 +62,46 @@ export class TemplatesClient {
     return this.#request<Template>('/v1/templates', {
       method: 'POST',
       body: JSON.stringify(options),
+    });
+  }
+
+  /**
+   * Create a new template by analyzing a sample document
+   *
+   * @param options - Configuration for template creation from document
+   * @param options.file - The document file to analyze (File, Blob, Buffer, or string path)
+   * @param options.name - Name for the generated template
+   * @param options.description - Optional description for the template
+   *
+   * @returns The created template based on document analysis
+   *
+   * @throws {ParselyzeError} When file is missing, invalid, or API errors occur
+   *
+   * @example
+   * ```typescript
+   * const fileBuffer = fs.readFileSync('./sample-invoice.pdf');
+   * const template = await parselyze.templates.createFromDocument({ file: fileBuffer, name: 'Invoice Template' });
+   * ```
+   */
+  async createFromDocument(options: CreateTemplateFromDocumentOptions): Promise<TemplateFromDocument> {
+    const { file, name, description } = options;
+    if (!file) {
+      throw new ParselyzeError('File buffer is required');
+    }
+    if (!name) {
+      throw new ParselyzeError('Template name is required');
+    }
+
+    const formData = new FormData();
+    formData.append('name', name);
+    this.#appendFile(formData, 'file', file);
+    if (description) {
+      formData.append('description', description);
+    }
+
+    return this.#request<TemplateFromDocument>('/v1/templates/fromDocument', {
+      method: 'POST',
+      body: formData,
     });
   }
 
@@ -128,11 +169,13 @@ export class TemplatesClient {
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
     try {
+      const isFormData = init.body instanceof FormData;
+
       const response = await fetch(`${this.baseUrl}${path}`, {
         ...init,
         headers: {
           'x-api-key': this.apiKey,
-          'Content-Type': 'application/json',
+          ...(!isFormData && { 'Content-Type': 'application/json' }),
           ...(init.headers as Record<string, string>),
         },
         signal: controller.signal,
@@ -140,12 +183,10 @@ export class TemplatesClient {
 
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-
         try {
           const errorData = (await response.json()) as any;
           errorMessage = errorData.message || errorData.error || errorMessage;
         } catch {}
-
         throw new ParselyzeError(errorMessage, response.status);
       }
 
@@ -155,17 +196,32 @@ export class TemplatesClient {
 
       return (await response.json()) as T;
     } catch (error) {
-      if (error instanceof ParselyzeError) {
-        throw error;
-      }
-
+      if (error instanceof ParselyzeError) throw error;
       if ((error as Error).name === 'AbortError') {
         throw new ParselyzeError(`Request timed out after ${this.timeout}ms`);
       }
-
       throw new ParselyzeError(`Network error: ${(error as Error).message}`);
     } finally {
       clearTimeout(timeoutId);
+    }
+  }
+
+  #appendFile(formData: FormData, fieldName: string, file: File | Blob | Buffer | string): void {
+    if (file instanceof File) {
+      formData.append(fieldName, file, file.name);
+    } else if (file instanceof Blob) {
+      formData.append(fieldName, file, 'document');
+    } else if (Buffer.isBuffer(file)) {
+      formData.append(fieldName, file as any, 'document.pdf');
+    } else if (typeof file === 'string') {
+      try {
+        const fileObj = createFileFromPath(file);
+        formData.append(fieldName, fileObj, fileObj.name);
+      } catch (error: any) {
+        throw new ParselyzeError(`Failed to load file from path "${file}": ${error.message}`);
+      }
+    } else {
+      throw new ParselyzeError('Invalid file type. Expected File, Blob, Buffer, or string path');
     }
   }
 }

@@ -84,6 +84,13 @@ export interface Template {
   updatedAt: string;
 }
 
+export interface TemplateFromDocument {
+  id: string;
+  name: string;
+  description?: string | null;
+  category: TemplateCategory;
+}
+
 export interface TemplateListItem {
   id: string;
   name: string;
@@ -94,6 +101,12 @@ export interface CreateTemplateOptions {
   description?: string;
   schema: Record<string, unknown>;
   category: TemplateCategory;
+}
+
+export interface CreateTemplateFromDocumentOptions {
+  file: File | Blob | Buffer | string;
+  name: string;
+  description?: string;
 }
 
 export type UpdateTemplateOptions = CreateTemplateOptions;

@@ -6,6 +6,11 @@ import { CreateTemplateOptions, Template, TemplateListItem } from '../types';
 const mockFetch = jest.fn();
 (global as any).fetch = mockFetch;
 
+// Mock fs module
+jest.mock('fs', () => ({
+  readFileSync: jest.fn(() => Buffer.from('mock file content')),
+}));
+
 const mockTemplate: Template = {
   id: 'tpl_abc123',
   name: 'Invoice',
@@ -124,6 +129,65 @@ describe('TemplatesClient', () => {
           headers: expect.objectContaining({
             'x-api-key': 'plz_test_key',
             'Content-Type': 'application/json',
+          }),
+        }),
+      );
+    });
+
+    it('should throw ParselyzeError with backend message on 400', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        json: jest.fn().mockResolvedValue({ message: 'schema.data.invoiceNumber.type must be one of: string, number, boolean, date, array, object' }),
+      });
+
+      await expect(client.create(mockCreateOptions)).rejects.toThrow('schema.data.invoiceNumber.type must be one of');
+    });
+
+    it('should throw ParselyzeError on network error', async () => {
+      mockFetch.mockRejectedValue(new Error('Connection refused'));
+
+      await expect(client.create(mockCreateOptions)).rejects.toThrow(ParselyzeError);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // create from document
+  // ---------------------------------------------------------------------------
+  describe('createFromDocument method', () => {
+    it('should throw ParselyzeError when name is missing', async () => {
+      await expect(client.createFromDocument({ file: 'doc.pdf', name: '' })).rejects.toThrow(ParselyzeError);
+      await expect(client.createFromDocument({ file: 'doc.pdf', name: '' })).rejects.toThrow('Template name is required');
+    });
+
+    it('should throw ParselyzeError when file is missing', async () => {
+      await expect(client.createFromDocument({ file: null as any, name: 'Template Name' })).rejects.toThrow(ParselyzeError);
+      await expect(client.createFromDocument({ file: null as any, name: 'Template Name' })).rejects.toThrow('File buffer is required');
+    });
+
+    it('should return created template on success', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 201, json: jest.fn().mockResolvedValue(mockTemplate) });
+
+      const result = await client.createFromDocument({ file: 'doc.pdf', name: 'Template Name' });
+
+      expect(result).toEqual(mockTemplate);
+      expect(result.id).toBe('tpl_abc123');
+      expect(result.category).toBe('INVOICE');
+    });
+
+    it('should POST to correct URL with correct body and headers', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 201, json: jest.fn().mockResolvedValue(mockTemplate) });
+
+      await client.createFromDocument({ file: 'doc.pdf', name: 'Template Name' });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.test.com/v1/templates/fromDocument',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.any(FormData),
+          headers: expect.objectContaining({
+            'x-api-key': 'plz_test_key',
           }),
         }),
       );
