@@ -450,7 +450,7 @@ Low-level signature verification. Returns `true`/`false` without throwing.
 
 ## Requirements
 
-- Node.js 18.0.0 or higher
+- Node.js 20.0.0 or higher
 
 ## Links
 

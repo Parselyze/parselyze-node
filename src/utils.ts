@@ -59,7 +59,7 @@ function readFileWithMetadata(filePath: string): {
 
     return { buffer, filename, mimeType };
   } catch (error: any) {
-    throw new Error(`Failed to read file from path "${filePath}": ${error.message}`);
+    throw new Error(`Failed to read file from path "${filePath}": ${error.message}`, { cause: error });
   }
 }
 

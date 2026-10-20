@@ -186,7 +186,9 @@ export class TemplatesClient {
         try {
           const errorData = (await response.json()) as any;
           errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch {}
+        } catch {
+          // Response body is not JSON; keep the default message
+        }
         throw new ParselyzeError(errorMessage, response.status);
       }
 

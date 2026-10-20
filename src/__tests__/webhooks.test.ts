@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { WebhooksClient } from '../clients/webhooks';
 import { ParselyzeError } from '../errors';
 
@@ -15,7 +16,6 @@ describe('WebhooksClient', () => {
   };
 
   const makeSignature = (body: object | string, secret = testSecret): string => {
-    const crypto = require('crypto');
     const str = typeof body === 'string' ? body : JSON.stringify(body);
     return crypto.createHmac('sha256', secret).update(str).digest('hex');
   };

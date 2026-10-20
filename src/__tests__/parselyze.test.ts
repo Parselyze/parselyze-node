@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { ParselyzeError } from '../errors';
 import { Parselyze } from '../parselyze';
 
@@ -50,7 +51,6 @@ describe('Parselyze SDK', () => {
       const secret = 'test_secret';
       const parselyze = new Parselyze('plz_test_key', secret);
       const payload = { test: 'data' };
-      const crypto = require('crypto');
       const validSignature = crypto.createHmac('sha256', secret).update(JSON.stringify(payload)).digest('hex');
 
       expect(parselyze.webhooks.verifySignature(payload, validSignature)).toBe(true);
@@ -61,7 +61,6 @@ describe('Parselyze SDK', () => {
       const secret = 'test_secret';
       const parselyze = new Parselyze('plz_test_key', secret);
       const payload = { test: 'data' };
-      const crypto = require('crypto');
       const validSignature = crypto.createHmac('sha256', secret).update(JSON.stringify(payload)).digest('hex');
 
       expect(parselyze.webhooks.verifySignature(payload, validSignature)).toBe(true);
