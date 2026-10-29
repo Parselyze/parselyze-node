@@ -60,6 +60,13 @@ describe('DocumentsClient', () => {
         expect(result.pageUsed).toBe(1);
         expect(result.pageRemaining).toBe(99);
       }
+      expect(mockFetch).toHaveBeenCalledWith(
+        'https://api.test.com/v1/documents/parse',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'x-api-key': 'plz_test_key' },
+        }),
+      );
     });
 
     it('should handle successful multiple documents response', async () => {

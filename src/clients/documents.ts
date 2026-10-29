@@ -45,7 +45,7 @@ export class DocumentsClient {
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
       try {
-        const response = await fetch(`${this.baseUrl}/documents/parse`, {
+        const response = await fetch(`${this.baseUrl}/v1/documents/parse`, {
           method: 'POST',
           headers: {
             'x-api-key': this.apiKey,
